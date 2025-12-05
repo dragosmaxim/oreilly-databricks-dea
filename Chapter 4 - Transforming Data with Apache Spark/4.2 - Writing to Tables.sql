@@ -12,12 +12,13 @@
 
 -- COMMAND ----------
 
--- MAGIC %run ../Includes/School-Setup
+-- MAGIC %run /Workspace/Users/dragos.maxim@endava.com/oreilly-databricks-dea/Includes/School-Setup
 
 -- COMMAND ----------
 
 CREATE TABLE enrollments AS
-SELECT * FROM parquet.`${dataset.school}/enrollments`
+SELECT * FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
+
 
 -- COMMAND ----------
 
@@ -36,7 +37,7 @@ SELECT * FROM enrollments
 -- COMMAND ----------
 
 CREATE OR REPLACE TABLE enrollments AS
-SELECT * FROM parquet.`${dataset.school}/enrollments`
+SELECT * FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
 
 -- COMMAND ----------
 
@@ -50,7 +51,7 @@ DESCRIBE HISTORY enrollments
 -- COMMAND ----------
 
 INSERT OVERWRITE enrollments
-SELECT * FROM parquet.`${dataset.school}/enrollments`
+SELECT * FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
 
 -- COMMAND ----------
 
@@ -69,7 +70,7 @@ DESCRIBE HISTORY enrollments
 -- COMMAND ----------
 
 INSERT INTO enrollments
-SELECT * FROM parquet.`${dataset.school}/enrollments-new`
+SELECT * FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
 
 -- COMMAND ----------
 
@@ -83,13 +84,21 @@ SELECT count(1) FROM enrollments
 -- COMMAND ----------
 
 CREATE OR REPLACE TEMP VIEW students_updates AS
-SELECT * FROM json.`${dataset.school}/students-json-new`;
+SELECT * FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
 
 -- COMMAND ----------
 
-MERGE INTO students c
+USE CATALOG workspace;
+USE SCHEMA school;
+
+-- COMMAND ----------
+
+-- MERGE INTO students c
+-- USING students_updates u
+-- ON c. student_id = u. student_id
+MERGE INTO workspace.school.students c
 USING students_updates u
-ON c. student_id = u. student_id
+ON c.student_id = u.student_id
 WHEN MATCHED AND c.email IS NULL AND u.email IS NOT NULL THEN
  UPDATE SET email = u.email, updated = u.updated
 WHEN NOT MATCHED THEN INSERT *
@@ -101,7 +110,7 @@ CREATE OR REPLACE TEMP VIEW courses_updates
    category STRING, price DOUBLE)
 USING CSV
 OPTIONS (
- path = "${dataset.school}/courses-csv-new",
+ path = "s3://dalhussein-books/DEA-Book/datasets/school/v1/courses-csv",
  header = "true",
  delimiter = ";"
 );

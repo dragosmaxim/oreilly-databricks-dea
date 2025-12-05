@@ -20,6 +20,12 @@ stream_df = spark.readStream.table("courses")
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC USE CATALOG workspace;
+# MAGIC USE SCHEMA school;
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Streaming Data Manipulations in SQL
 
@@ -29,8 +35,40 @@ stream_df.createOrReplaceTempView("courses_streaming_tmp_vw")
 
 # COMMAND ----------
 
+courses_df = (
+    spark.read
+         .option("header", "true")
+         .option("inferSchema", "true")
+         .option("sep", ";")  # <-- VERY IMPORTANT
+         .csv("s3://dalhussein-books/DEA-Book/datasets/school/v1/courses-csv")
+)
+
+display(courses_df)
+
+# COMMAND ----------
+
+courses_df.write.mode("overwrite").format("delta").saveAsTable("courses")
+
+# COMMAND ----------
+
+stream_df = (
+    spark.readStream
+         .table("courses")   # reads from workspace.school.courses
+)
+
+stream_df.createOrReplaceTempView("courses_streaming_tmp_vw")
+
+# COMMAND ----------
+
 # MAGIC %sql
 # MAGIC SELECT * FROM courses_streaming_tmp_vw
+
+# COMMAND ----------
+
+checkpoint_path = "s3://dalhussein-books/checkpoints/courses_stream"  # must be writable
+
+display(stream_df, checkpointLocation=checkpoint_path)
+
 
 # COMMAND ----------
 
@@ -72,11 +110,46 @@ result_stream_df = spark.table("instructor_counts_tmp_vw")
 
 # COMMAND ----------
 
+# MAGIC %sql
+# MAGIC USE CATALOG workspace;
+# MAGIC USE SCHEMA school;
+
+# COMMAND ----------
+
+stream_df = (
+    spark.readStream
+        .table("courses")
+)
+stream_df.printSchema
+
+# COMMAND ----------
+
+stream_df.printSchema()
+
+# COMMAND ----------
+
+stream_df.printSchema()
+
+# COMMAND ----------
+
 (result_stream_df.writeStream 
                  .trigger(processingTime='3 seconds')
                  .outputMode("complete")
-                 .option("checkpointLocation", "dbfs:/mnt/DEA-Book/checkpoints/instructor_counts")
+                 #.format("memory")
+                 #.option("checkpointLocation", "dbfs:/mnt/DEA-Book/checkpoints/instructor_counts")
+                 .option("checkpointLocation", checkpoint_path)
                  .table("instructor_counts")
+)
+
+# COMMAND ----------
+
+query = (
+    result_stream_df.writeStream
+        .format("memory")
+        .queryName("instructor_counts")
+        .outputMode("complete")
+        .trigger(availableNow=True)
+        .start()
 )
 
 # COMMAND ----------
@@ -94,8 +167,22 @@ result_stream_df = spark.table("instructor_counts_tmp_vw")
 
 # COMMAND ----------
 
+checkpoint_path = "/Volumes/workspace/school/checkpoints/instructor_counts_tmp"
+
+query = (
+    result_stream_df.writeStream
+        .format("memory")
+        .queryName("instructor_counts_tmp")
+        .outputMode("complete")
+        .trigger(availableNow=True)       # finite trigger is OK
+        .option("checkpointLocation", checkpoint_path)
+        .start()
+)
+
+# COMMAND ----------
+
 # MAGIC %sql
-# MAGIC SELECT * FROM instructor_counts
+# MAGIC SELECT * FROM instructor_counts_tmp
 
 # COMMAND ----------
 
@@ -115,7 +202,7 @@ result_stream_df = spark.table("instructor_counts_tmp_vw")
 (result_stream_df.writeStream                                    
                  .trigger(availableNow=True)
                  .outputMode("complete")
-                 .option("checkpointLocation", "dbfs:/mnt/DEA-Book/checkpoints/instructor_counts")
+                 .option("checkpointLocation", checkpoint_path)
                  .table("instructor_counts")
                  .awaitTermination()
 )
@@ -146,7 +233,7 @@ display(output_stream_df)
 (output_stream_df.writeStream                                    
                  .trigger(availableNow=True)
                  .outputMode("complete")
-                 .option("checkpointLocation", "dbfs:/mnt/DEA-Book/checkpoints/instructor_counts_py")
+                 .option("checkpointLocation", checkpoint_path)
                  .table("instructor_counts_py")
                  .awaitTermination()
 )

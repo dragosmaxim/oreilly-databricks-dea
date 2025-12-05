@@ -17,17 +17,32 @@
 
 -- COMMAND ----------
 
--- MAGIC %run ../Includes/School-Setup
+-- MAGIC %run /Workspace/Users/dragos.maxim@endava.com/oreilly-databricks-dea/Includes/School-Setup
+-- MAGIC
+-- MAGIC
+-- MAGIC
 
 -- COMMAND ----------
 
 -- MAGIC %python
--- MAGIC files = dbutils.fs.ls(f"{dataset_school}/students-json")
+-- MAGIC students_path = f"{data_source_uri}/students-json"
+-- MAGIC files = dbutils.fs.ls(students_path)
 -- MAGIC display(files)
+-- MAGIC
 
 -- COMMAND ----------
 
-SELECT * FROM json.`${dataset.school}/students-json/export_001.json`
+-- MAGIC %python
+-- MAGIC students_path = f"{data_source_uri}/students-json/export_001.json"
+-- MAGIC df = spark.read.json(students_path)
+-- MAGIC display(df)
+-- MAGIC
+-- MAGIC
+
+-- COMMAND ----------
+
+SELECT *
+FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
 
 -- COMMAND ----------
 
@@ -82,14 +97,14 @@ SELECT * FROM csv.`${dataset.school}/courses-csv`
 -- COMMAND ----------
 
 CREATE TABLE students AS
-SELECT * FROM json.`${dataset.school}/students-json`;
+SELECT * FROM json.`s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json`;
 
 DESCRIBE EXTENDED students;
 
 -- COMMAND ----------
 
 CREATE TABLE courses_unparsed AS
-SELECT * FROM csv.`${dataset.school}/courses-csv`;
+SELECT * FROM csv.`s3://dalhussein-books/DEA-Book/datasets/school/v1/courses-csv`;
 
 SELECT * FROM courses_unparsed;
 
@@ -111,6 +126,17 @@ LOCATION "${dataset.school}/courses-csv"
 -- COMMAND ----------
 
 SELECT * FROM courses_csv
+
+-- COMMAND ----------
+
+courses_path = "s3://dalhussein-books/DEA-Book/datasets/school/v1/courses-csv"
+display(dbutils.fs.ls(courses_path))
+
+
+-- COMMAND ----------
+
+SELECT *
+FROM csv.`s3://dalhussein-books/DEA-Book/datasets/school/v1/courses-csv`;
 
 -- COMMAND ----------
 

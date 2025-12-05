@@ -12,7 +12,8 @@
 
 -- COMMAND ----------
 
--- MAGIC %run ../Includes/School-Setup
+-- MAGIC %run /Workspace/Users/dragos.maxim@endava.com/oreilly-databricks-dea/Includes/School-Setup
+-- MAGIC
 
 -- COMMAND ----------
 

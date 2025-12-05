@@ -31,11 +31,33 @@ display(files)
            .format("cloudFiles")
            .option("cloudFiles.format", "json")
            .option("cloudFiles.inferColumnTypes","true")
-           .option("cloudFiles.schemaLocation", "dbfs:/mnt/DEA-Book/checkpoints/enrollments")
+           .option("cloudFiles.schemaLocation", "s3://dalhussein-books/DEA-Book/checkpoints/enrollments")
            .load(f"{dataset_school}/enrollments-json-raw")
      .writeStream
-           .option("checkpointLocation", "dbfs:/mnt/DEA-Book/checkpoints/enrollments")
+           .option("checkpointLocation", "s3://dalhussein-books/DEA-Book/checkpoints/enrollments")
            .table("enrollments_updates")
+)
+
+/Volumes/workspace/school/checkpoints
+
+# COMMAND ----------
+
+volume_base = "/Volumes/workspace/school/checkpoints"
+
+schema_location     = f"{volume_base}/enrollments_schemas"
+checkpoint_location = f"{volume_base}/enrollments"
+
+(
+  spark.readStream
+    .format("cloudFiles")
+    .option("cloudFiles.format", "json")
+    .option("cloudFiles.inferColumnTypes", "true")
+    .option("cloudFiles.schemaLocation", schema_location)
+    .load("s3://dalhussein-books/DEA-Book/datasets/school/v1/enrollments-json-raw")
+    .writeStream
+    .option("checkpointLocation", checkpoint_location)
+    .trigger(availableNow=True)
+    .table("enrollments_updates")
 )
 
 # COMMAND ----------
@@ -53,6 +75,24 @@ display(files)
 # MAGIC %md
 # MAGIC
 # MAGIC ## Observing Auto Loader
+
+# COMMAND ----------
+
+raw_path = "/Volumes/workspace/school/checkpoints/enrollments_raw"
+
+(
+  spark.readStream
+       .format("cloudFiles")
+       .option("cloudFiles.format", "json")
+       .option("cloudFiles.inferColumnTypes", "true")
+       .option("cloudFiles.schemaLocation", schema_location)
+       .load(raw_path)              # 👈 now watching your Volume!
+       .writeStream
+       .option("checkpointLocation", checkpoint_location)
+       .trigger(availableNow=True)
+       .table("enrollments_updates")
+)
+
 
 # COMMAND ----------
 
@@ -78,6 +118,14 @@ display(files)
 
 # MAGIC %sql
 # MAGIC DESCRIBE HISTORY enrollments_updates
+
+# COMMAND ----------
+
+def load_new_data():
+    src = "dbfs:/databricks-datasets/some/example/file.json"
+    dst = "/Volumes/workspace/school/checkpoints/enrollments_raw/file.json"
+    dbutils.fs.cp(src, dst)
+
 
 # COMMAND ----------
 

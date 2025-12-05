@@ -28,6 +28,11 @@ RETURN cast(round(gpa * 25) AS INT)
 
 -- COMMAND ----------
 
+USE CATALOG workspace;
+USE SCHEMA school;
+
+-- COMMAND ----------
+
 -- MAGIC %md
 -- MAGIC ## Applying UDFs
 

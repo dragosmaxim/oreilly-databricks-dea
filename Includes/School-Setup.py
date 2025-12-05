@@ -1,16 +1,20 @@
 # Databricks notebook source
 # MAGIC %sql
-# MAGIC USE CATALOG hive_metastore
+# MAGIC USE CATALOG workspace;
+# MAGIC CREATE SCHEMA IF NOT EXISTS school;
+# MAGIC USE school;
 
 # COMMAND ----------
 
-data_source_uri = "s3://dalhussein-books/DEA-Book/datasets/school/v1/"
-dataset_school = 'dbfs:/mnt/DE-Associate-Book/datasets/school'
-checkpoint_path = 'dbfs:/mnt/DEA-Book/checkpoints'
-dlt_path = 'dbfs:/mnt/DEA-Book/dlt'
-db_name = 'DE_Associate_School'
-dlt_db_name = 'school_dlt_db'
-spark.conf.set(f"dataset.school", dataset_school)
+data_source_uri = "s3://dalhussein-books/DEA-Book/datasets/school/v1"
+# dataset_school  = 'dbfs:/mnt/DE-Associate-Book/datasets/school'  # or change later
+dataset_school  = data_source_uri
+# checkpoint_path = 'dbfs:/mnt/DE-Book/checkpoints'
+# dlt_path        = 'dbfs:/mnt/DEA-Book/dlt'
+db_name         = 'DE_Associate_School'
+dlt_db_name     = 'school_dlt_db'
+#dbutils.fs.ls("dbfs:/mnt/DE-Associate-Book/datasets/school/courses-cdc")
+path = dataset_school
 
 # COMMAND ----------
 
@@ -132,9 +136,9 @@ def load_new_json_data(all=False):
 
 # COMMAND ----------
 
-download_dataset(data_source_uri, dataset_school)
+# download_dataset(data_source_uri, dataset_school)  # Ensure data_source_uri points to an accessible location.
 
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {db_name}")
 spark.sql(f"USE {db_name}")
 print()
-print(f"Schema name: hive_metastore.{db_name}")
+print(f"Schema name: workspace.{db_name}")

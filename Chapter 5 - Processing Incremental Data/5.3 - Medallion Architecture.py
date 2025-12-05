@@ -32,6 +32,15 @@ display(files)
 
 # COMMAND ----------
 
+# Where the course keeps the raw files (read-only)
+dataset_school = "s3://dalhussein-books/DEA-Book/datasets/school/v1"
+
+# Base path for *your* streaming metadata (schemas + checkpoints)
+checkpoint_path = "/Volumes/workspace/school/checkpoints"
+
+
+# COMMAND ----------
+
 import pyspark.sql.functions as F
 
 (spark.readStream
@@ -42,11 +51,13 @@ import pyspark.sql.functions as F
            .load(f"{dataset_school}/enrollments-json-raw")
            .select("*",
                    F.current_timestamp().alias("arrival_time"),
-                   F.input_file_name().alias("source_file"))
+                   F.col("_metadata.file_path").alias("source_file")
+           )
      .writeStream
            .format("delta")
            .option("checkpointLocation", f"{checkpoint_path}/enrollments_bronze")
            .outputMode("append")
+           .trigger(availableNow=True) 
            .table("enrollments_bronze")
 )
 
@@ -107,6 +118,7 @@ enrollments_enriched_df = (spark.readStream
                        .format("delta")
                        .option("checkpointLocation", f"{checkpoint_path}/enrollments_silver")
                        .outputMode("append")
+                       .trigger(availableNow=True)
                        .table("enrollments_silver"))
 
 # COMMAND ----------
