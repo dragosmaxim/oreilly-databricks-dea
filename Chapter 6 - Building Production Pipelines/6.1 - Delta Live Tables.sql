@@ -12,7 +12,19 @@
 
 -- COMMAND ----------
 
-SET school.dataset_path=dbfs:/mnt/DE-Associate-Book/datasets/school;
+-- MAGIC %python
+-- MAGIC dataset_path="/Volumes/workspace/school/checkpoints/enrollments_dlt_raw"
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC df = (
+-- MAGIC     spark.readStream
+-- MAGIC          .format("cloudFiles")
+-- MAGIC          .option("cloudFiles.format", "json")
+-- MAGIC          .option("cloudFiles.inferColumnTypes", "true")
+-- MAGIC          .load(dataset_path)
+-- MAGIC )
 
 -- COMMAND ----------
 
@@ -28,9 +40,32 @@ SET school.dataset_path=dbfs:/mnt/DE-Associate-Book/datasets/school;
 
 CREATE OR REFRESH STREAMING TABLE enrollments_raw
 COMMENT "The raw courses enrollments, ingested from enrollments-dlt-raw folder"
-AS SELECT * FROM cloud_files("${school.dataset_path}/enrollments-dlt-raw",
+AS SELECT * FROM cloud_files('/Volumes/workspace/school/checkpoints/enrollments_dlt_raw',
                             "json",
                             map("cloudFiles.inferColumnTypes", "true"))
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC spark.conf.set(
+-- MAGIC     "dataset_path",
+-- MAGIC     "/Volumes/workspace/school/checkpoints/enrollments_dlt_raw"
+-- MAGIC )
+-- MAGIC
+
+-- COMMAND ----------
+
+USE CATALOG workspace;
+USE SCHEMA school;
+
+CREATE OR REFRESH STREAMING TABLE enrollments_raw
+COMMENT "The raw courses enrollments, ingested from enrollments_dlt-raw folder"
+AS SELECT * FROM cloud_files(
+  '/Volumes/workspace/school/checkpoints/enrollments_dlt_raw',
+  'json',
+  map('cloudFiles.inferColumnTypes','true')
+);
+
 
 -- COMMAND ----------
 
@@ -39,9 +74,43 @@ AS SELECT * FROM cloud_files("${school.dataset_path}/enrollments-dlt-raw",
 
 -- COMMAND ----------
 
+SET dataset_path = '/Volumes/workspace/school/checkpoints/enrollments_dlt_raw';
+
+-- COMMAND ----------
+
+USE CATALOG workspace;
+USE SCHEMA school;
+
+CREATE OR REPLACE TABLE students_raw
+USING json
+LOCATION '/Volumes/workspace/school/checkpoints/students-json';
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC # Path to your students JSON inside the checkpoints volume
+-- MAGIC # Path to the original students JSON in the course S3 bucket (read-only is fine)
+-- MAGIC students_path = "s3://dalhussein-books/DEA-Book/datasets/school/v1/students-json"
+-- MAGIC
+-- MAGIC df_students = (
+-- MAGIC     spark.read
+-- MAGIC          .format("json")
+-- MAGIC          .load(students_path)
+-- MAGIC )
+-- MAGIC
+-- MAGIC # Write as a managed Delta table in workspace.school
+-- MAGIC df_students.write.mode("overwrite").saveAsTable("workspace.school.students_raw")
+-- MAGIC
+
+-- COMMAND ----------
+
+use catalog `workspace`; select * from `school`.`students_raw` limit 100;
+
+-- COMMAND ----------
+
 CREATE OR REPLACE MATERIALIZED VIEW students
 COMMENT "The students lookup table, ingested from students-json"
-AS SELECT * FROM json.`${school.dataset_path}/students-json`
+AS SELECT * FROM json.`${dataset_path}/students-json`
 
 -- COMMAND ----------
 
@@ -65,6 +134,10 @@ AS
 
 -- COMMAND ----------
 
+dataset_path = "/Volumes/workspace/school/checkpoints/enrollments_dlt_raw"
+
+-- COMMAND ----------
+
 -- MAGIC %md
 -- MAGIC
 -- MAGIC
@@ -79,6 +152,14 @@ AS
  FROM LIVE.enrollments_cleaned
  WHERE country = "United Kingdom"
  GROUP BY student_id, f_name, l_name, date_trunc("DD", formatted_timestamp)
+
+-- COMMAND ----------
+
+CREATE OR REPLACE MATERIALIZED VIEW students
+COMMENT "The students lookup table, ingested from students-json"
+AS
+SELECT *
+FROM students_raw;
 
 -- COMMAND ----------
 
